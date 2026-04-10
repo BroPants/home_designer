@@ -54,11 +54,19 @@ pub async fn upload_image(
     use crate::services::image::ImageService;
     use std::fs;
 
+    log::info!("Starting upload_image: project={}, filename={}, type={:?}", project_id, filename, image_type);
+    log::info!("Image data size: {} bytes", image_data.len());
+
     let mut storage = STORAGE.lock().map_err(|e| e.to_string())?;
     let image_service = ImageService::new();
 
     let image_id = image_service.generate_image_id();
     let project_dir = storage.get_project_dir(&project_id);
+    
+    log::info!("Project directory: {:?}", project_dir);
+
+    // 确保项目目录存在
+    fs::create_dir_all(&project_dir).map_err(|e| format!("Failed to create project dir: {}", e))?;
 
     // 确定存储子目录
     let (subdir, _) = match image_type {
@@ -69,21 +77,30 @@ pub async fn upload_image(
     // 确保子目录存在
     let subdir_path = project_dir.join(subdir);
     let thumbnail_dir = project_dir.join("thumbnails");
-    fs::create_dir_all(&subdir_path).map_err(|e| e.to_string())?;
-    fs::create_dir_all(&thumbnail_dir).map_err(|e| e.to_string())?;
+    
+    log::info!("Creating directories: subdir={:?}, thumbnail={:?}", subdir_path, thumbnail_dir);
+    
+    fs::create_dir_all(&subdir_path).map_err(|e| format!("Failed to create subdir: {}", e))?;
+    fs::create_dir_all(&thumbnail_dir).map_err(|e| format!("Failed to create thumbnail dir: {}", e))?;
 
     let image_path = subdir_path.join(format!("{}.jpg", image_id));
     let thumbnail_path = thumbnail_dir.join(format!("{}_thumb.jpg", image_id));
+    
+    log::info!("Image paths: image={:?}, thumbnail={:?}", image_path, thumbnail_path);
 
     // 保存原图并获取尺寸
+    log::info!("Saving image from bytes...");
     let (width, height) = image_service
         .save_from_bytes(&image_data, &image_path)
-        .map_err(|e| format!("Failed to save image: {}", e))?;
+        .map_err(|e| format!("Failed to save image: {:?}", e))?;
+    
+    log::info!("Image saved: {}x{}", width, height);
 
     // 生成缩略图
+    log::info!("Generating thumbnail...");
     image_service
         .generate_thumbnail(&image_path, &thumbnail_path, 400)
-        .map_err(|e| format!("Failed to generate thumbnail: {}", e))?;
+        .map_err(|e| format!("Failed to generate thumbnail: {:?}", e))?;
 
     let image_file = ImageFile {
         id: image_id,

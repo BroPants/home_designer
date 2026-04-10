@@ -36,8 +36,25 @@ impl ImageService {
     }
     
     pub fn get_dimensions(&self, path: &Path) -> Result<(i32, i32)> {
-        let img = image::open(path).context("Failed to open image")?;
+        log::info!("Opening image at {:?}", path);
+        
+        // 检查文件是否存在
+        if !path.exists() {
+            return Err(anyhow::anyhow!("Image file does not exist: {:?}", path));
+        }
+        
+        // 检查文件大小
+        let metadata = fs::metadata(path)
+            .with_context(|| format!("Failed to read metadata for {:?}", path))?;
+        log::info!("File size: {} bytes", metadata.len());
+        
+        // 尝试打开图片
+        let img = image::open(path)
+            .with_context(|| format!("Failed to open image at {:?} - file may be corrupted or in unsupported format", path))?;
+        
         let (width, height) = img.dimensions();
+        log::info!("Image dimensions: {}x{}", width, height);
+        
         Ok((width as i32, height as i32))
     }
     
@@ -47,8 +64,27 @@ impl ImageService {
     }
     
     pub fn save_from_bytes(&self, data: &[u8], output_path: &Path) -> Result<(i32, i32)> {
-        fs::write(output_path, data).context("Failed to write image file")?;
-        self.get_dimensions(output_path)
+        log::info!("Writing {} bytes to {:?}", data.len(), output_path);
+        
+        // 写入文件
+        fs::write(output_path, data)
+            .with_context(|| format!("Failed to write image file to {:?}", output_path))?;
+        
+        log::info!("File written, getting dimensions...");
+        
+        // 获取图片尺寸
+        match self.get_dimensions(output_path) {
+            Ok(dim) => {
+                log::info!("Got dimensions: {}x{}", dim.0, dim.1);
+                Ok(dim)
+            }
+            Err(e) => {
+                log::error!("Failed to get dimensions for {:?}: {:?}", output_path, e);
+                // 尝试删除损坏的文件
+                let _ = fs::remove_file(output_path);
+                Err(e)
+            }
+        }
     }
     
     pub fn generate_image_id(&self) -> String {
