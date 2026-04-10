@@ -27,6 +27,7 @@ function App() {
   // 本地状态
   const [selectedRenderingIndex, setSelectedRenderingIndex] = useState(0);
   const [, setIsCreating] = useState(false);
+  const [uploadingType, setUploadingType] = useState<ImageType | null>(null);
 
   // 初始化：加载项目列表
   useEffect(() => {
@@ -102,7 +103,7 @@ function App() {
   const handleUploadImage = async (files: File[], type: ImageType) => {
     if (!currentProject) return;
 
-    setLoading(true);
+    setUploadingType(type);
     try {
       for (const file of files) {
         const arrayBuffer = await file.arrayBuffer();
@@ -123,7 +124,7 @@ function App() {
       setError('上传图片失败');
       console.error(err);
     } finally {
-      setLoading(false);
+      setUploadingType(null);
     }
   };
 
@@ -214,6 +215,7 @@ function App() {
                 onUpload={(files) => handleUploadImage(files, 'floorPlan')}
                 onDelete={handleDeleteImage}
                 maxFiles={1}
+                isLoading={uploadingType === 'floorPlan'}
               />
               
               <ImageUploader
@@ -222,6 +224,7 @@ function App() {
                 onUpload={(files) => handleUploadImage(files, 'photo')}
                 onDelete={handleDeleteImage}
                 maxFiles={5}
+                isLoading={uploadingType === 'photo'}
               />
             </div>
           ) : (

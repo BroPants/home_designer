@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { convertFileSrc } from '@tauri-apps/api/tauri';
 import { ImageFile, ImageType } from '@/types';
 import { formatFileSize } from '@/utils/format';
 
@@ -11,11 +12,21 @@ interface ImageUploaderProps {
   onDelete: (imageId: string) => void;
   maxFiles?: number;
   accept?: Record<string, string[]>;
+  isLoading?: boolean;
 }
 
 const defaultAccept = {
   'image/*': ['.png', '.jpg', '.jpeg', '.webp'],
 };
+
+// 将本地文件路径转换为可访问的 URL
+function getImageUrl(path: string): string {
+  try {
+    return convertFileSrc(path);
+  } catch {
+    return '';
+  }
+}
 
 export function ImageUploader({
   type,
@@ -24,12 +35,26 @@ export function ImageUploader({
   onDelete,
   maxFiles = 10,
   accept = defaultAccept,
+  isLoading = false,
 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
 
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      onUpload(acceptedFiles);
+    async (acceptedFiles: File[]) => {
+      // 标记正在上传的文件
+      const fileIds = acceptedFiles.map(f => f.name + f.size);
+      setUploadingFiles(prev => new Set([...prev, ...fileIds]));
+      
+      try {
+        await onUpload(acceptedFiles);
+      } finally {
+        setUploadingFiles(prev => {
+          const next = new Set(prev);
+          fileIds.forEach(id => next.delete(id));
+          return next;
+        });
+      }
       setIsDragging(false);
     },
     [onUpload]
@@ -39,7 +64,7 @@ export function ImageUploader({
     onDrop,
     accept,
     maxFiles: maxFiles - images.length,
-    disabled: images.length >= maxFiles,
+    disabled: images.length >= maxFiles || isLoading,
     onDragEnter: () => setIsDragging(true),
     onDragLeave: () => setIsDragging(false),
   });
@@ -47,8 +72,8 @@ export function ImageUploader({
   const isFloorPlan = type === 'floorPlan';
   const title = isFloorPlan ? '户型图' : '实拍图';
   const description = isFloorPlan
-    ? '上传户型平面图，支持 JPG、PNG 格式'
-    : '上传房间实拍照片，支持 JPG、PNG 格式';
+    ? '上传户型平面图，支持 JPG、PNG 格式（最多1张）'
+    : '上传房间实拍照片，支持 JPG、PNG 格式（最多5张）';
 
   return (
     <div className="space-y-3">
@@ -61,28 +86,14 @@ export function ImageUploader({
 
       {/* 图片列表 */}
       {images.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className={`grid gap-2 ${isFloorPlan ? 'grid-cols-1' : 'grid-cols-2'}`}>
           {images.map((image) => (
-            <div
+            <ImageThumbnail
               key={image.id}
-              className="relative group aspect-square rounded-lg border border-gray-200 overflow-hidden bg-gray-50"
-            >
-              <img
-                src={`data:image/jpeg;base64,${image.thumbnailPath}`}
-                alt={image.filename}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-              <button
-                onClick={() => onDelete(image.id)}
-                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-              >
-                <X className="w-3 h-3" />
-              </button>
-              <div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-black/50 text-white text-xs truncate opacity-0 group-hover:opacity-100 transition-opacity">
-                {image.filename}
-              </div>
-            </div>
+              image={image}
+              onDelete={() => onDelete(image.id)}
+              isFloorPlan={isFloorPlan}
+            />
           ))}
         </div>
       )}
@@ -94,25 +105,34 @@ export function ImageUploader({
           className={`
             relative border-2 border-dashed rounded-lg p-4 cursor-pointer
             transition-colors duration-200
-            ${
-              isDragActive || isDragging
-                ? 'border-primary-500 bg-primary-50'
-                : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+            ${isDragActive || isDragging
+              ? 'border-blue-500 bg-blue-50'
+              : 'border-gray-300 hover:border-gray-400 bg-gray-50'
             }
+            ${(isLoading || uploadingFiles.size > 0) ? 'opacity-50 cursor-not-allowed' : ''}
           `}
         >
           <input {...getInputProps()} />
           <div className="flex flex-col items-center justify-center space-y-2">
             <div
               className={`p-2 rounded-full ${
-                isDragActive ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-400'
+                isDragActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'
               }`}
             >
-              <Upload className="w-5 h-5" />
+              {isLoading || uploadingFiles.size > 0 ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Upload className="w-5 h-5" />
+              )}
             </div>
             <div className="text-center">
               <p className="text-xs text-gray-600">
-                {isDragActive ? '松开以上传' : '点击或拖拽上传'}
+                {isDragActive 
+                  ? '松开以上传' 
+                  : isLoading || uploadingFiles.size > 0 
+                    ? '上传中...' 
+                    : '点击或拖拽上传'
+                }
               </p>
               <p className="text-xs text-gray-400 mt-1">
                 {description}
@@ -125,28 +145,107 @@ export function ImageUploader({
   );
 }
 
-// 图片预览组件
+// 图片缩略图组件
+function ImageThumbnail({
+  image,
+  onDelete,
+  isFloorPlan,
+}: {
+  image: ImageFile;
+  onDelete: () => void;
+  isFloorPlan: boolean;
+}) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  const imageUrl = useMemo(() => {
+    // 优先使用缩略图，如果没有则使用原图
+    const path = image.thumbnailPath || image.path;
+    return getImageUrl(path);
+  }, [image]);
+
+  return (
+    <div
+      className={`relative group rounded-lg border border-gray-200 overflow-hidden bg-gray-50 ${
+        isFloorPlan ? 'aspect-video' : 'aspect-square'
+      }`}
+    >
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+        </div>
+      )}
+      
+      {hasError ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+          <ImageIcon className="w-8 h-8 mb-1" />
+          <span className="text-xs">加载失败</span>
+        </div>
+      ) : (
+        <img
+          src={imageUrl}
+          alt={image.filename}
+          className={`w-full h-full object-cover transition-opacity duration-200 ${
+            isLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+        />
+      )}
+
+      {/* 悬停遮罩 */}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+      
+      {/* 删除按钮 */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        className="absolute top-1.5 right-1.5 p-1.5 bg-red-500 text-white rounded-full 
+                   opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 
+                   shadow-sm transform scale-90 group-hover:scale-100"
+        title="删除图片"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+      
+      {/* 文件名提示 */}
+      <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 bg-gradient-to-t from-black/70 to-transparent 
+                      text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+        <p className="truncate">{image.filename}</p>
+        <p className="text-[10px] text-gray-300">
+          {formatFileSize(image.size)} · {image.width}×{image.height}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// 图片预览组件（列表形式）
 export function ImagePreview({ image, onRemove }: { image: ImageFile; onRemove?: () => void }) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const imageUrl = useMemo(() => getImageUrl(image.thumbnailPath || image.path), [image]);
+
   return (
     <div className="relative group">
       <div className="flex items-center space-x-3 p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
-        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
-          {image.thumbnailPath ? (
-            <img
-              src={`data:image/jpeg;base64,${image.thumbnailPath}`}
-              alt={image.filename}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <ImageIcon className="w-5 h-5 text-gray-400" />
-          )}
+        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+          {!isLoaded && <ImageIcon className="w-5 h-5 text-gray-400" />}
+          <img
+            src={imageUrl}
+            alt={image.filename}
+            className={`w-full h-full object-cover ${isLoaded ? 'block' : 'hidden'}`}
+            onLoad={() => setIsLoaded(true)}
+            onError={() => setIsLoaded(false)}
+          />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-700 truncate">
             {image.filename}
           </p>
           <p className="text-xs text-gray-500">
-            {formatFileSize(image.size)} · {image.width}x{image.height}
+            {formatFileSize(image.size)} · {image.width}×{image.height}
           </p>
         </div>
         {onRemove && (
