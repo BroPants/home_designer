@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Image as ImageIcon } from 'lucide-react';
-import { Message, MessageRole } from '@/types';
+import { Message } from '@/types';
 import { formatTimestamp } from '@/utils/format';
 
 interface ChatInterfaceProps {

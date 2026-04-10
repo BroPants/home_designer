@@ -3,7 +3,6 @@ import {
   Project,
   ProjectSummary,
   ImageFile,
-  Message,
   Rendering,
   ExportFormat,
   ImageType,

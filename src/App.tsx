@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ImageUploader } from '@/components/upload/ImageUploader';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { RenderingViewer } from '@/components/viewer/RenderingViewer';
 import { ProjectSidebar } from '@/components/sidebar/ProjectSidebar';
 import { useProjectStore } from '@/stores/projectStore';
 import { projectApi, imageApi, chatApi } from '@/services/api';
-import { ImageFile, ImageType, Project, ProjectSummary, Message } from '@/types';
+import { ImageType, ProjectSummary, Message, Rendering } from '@/types';
 import './index.css';
 
 function App() {
@@ -19,14 +19,14 @@ function App() {
     addProject,
     removeProject,
     addMessage,
-    addRendering,
+
     setLoading,
     setError,
   } = useProjectStore();
 
   // 本地状态
   const [selectedRenderingIndex, setSelectedRenderingIndex] = useState(0);
-  const [isCreating, setIsCreating] = useState(false);
+  const [, setIsCreating] = useState(false);
 
   // 初始化：加载项目列表
   useEffect(() => {
@@ -178,7 +178,7 @@ function App() {
   };
 
   // 导出效果图
-  const handleExportRendering = async (rendering: ImageFile) => {
+  const handleExportRendering = async (rendering: Rendering) => {
     // TODO: 实现导出功能
     console.log('Export rendering:', rendering);
   };

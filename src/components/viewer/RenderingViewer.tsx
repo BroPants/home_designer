@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Rendering } from '@/types';
 
 interface RenderingViewerProps {
@@ -16,7 +16,7 @@ export function RenderingViewer({
   onExport,
 }: RenderingViewerProps) {
   const [zoom, setZoom] = useState(1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [_isFullscreen, _setIsFullscreen] = useState(false);
 
   const currentRendering = renderings[currentIndex];
 

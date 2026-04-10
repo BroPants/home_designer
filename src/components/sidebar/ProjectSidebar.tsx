@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, MoreHorizontal, Clock, Image as ImageIcon, MessageSquare } from 'lucide-react';
+import { Plus, Trash2, Clock, Image as ImageIcon, MessageSquare } from 'lucide-react';
 import { ProjectSummary } from '@/types';
 import { formatTimestamp } from '@/utils/format';
 

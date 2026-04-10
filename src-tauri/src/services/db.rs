@@ -550,3 +550,172 @@ impl Database {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn setup_test_db() -> (Database, TempDir) {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let db = Database::new(&db_path).unwrap();
+        (db, temp_dir)
+    }
+
+    #[test]
+    fn test_create_and_get_project() {
+        let (db, _temp) = setup_test_db();
+
+        let project = Project {
+            id: "test-123".to_string(),
+            name: "Test Project".to_string(),
+            created_at: 1234567890,
+            updated_at: 1234567890,
+            description: Some("Test description".to_string()),
+            floor_plan: None,
+            photos: vec![],
+            conversations: vec![],
+            renderings: vec![],
+        };
+
+        // 创建项目
+        db.create_project(&project).unwrap();
+
+        // 获取项目
+        let retrieved = db.get_project("test-123").unwrap().unwrap();
+        assert_eq!(retrieved.id, "test-123");
+        assert_eq!(retrieved.name, "Test Project");
+        assert_eq!(retrieved.description, Some("Test description".to_string()));
+    }
+
+    #[test]
+    fn test_list_projects() {
+        let (db, _temp) = setup_test_db();
+
+        // 创建两个项目
+        for i in 1..=2 {
+            let project = Project {
+                id: format!("proj-{}", i),
+                name: format!("Project {}", i),
+                created_at: 1000 + i as i64,
+                updated_at: 1000 + i as i64,
+                description: None,
+                floor_plan: None,
+                photos: vec![],
+                conversations: vec![],
+                renderings: vec![],
+            };
+            db.create_project(&project).unwrap();
+        }
+
+        let projects = db.list_projects().unwrap();
+        assert_eq!(projects.len(), 2);
+    }
+
+    #[test]
+    fn test_update_project() {
+        let (db, _temp) = setup_test_db();
+
+        let project = Project {
+            id: "update-test".to_string(),
+            name: "Original Name".to_string(),
+            created_at: 1000,
+            updated_at: 1000,
+            description: None,
+            floor_plan: None,
+            photos: vec![],
+            conversations: vec![],
+            renderings: vec![],
+        };
+
+        db.create_project(&project).unwrap();
+
+        // 更新项目名称
+        db.update_project("update-test", Some("Updated Name"), Some("New description")).unwrap();
+
+        let updated = db.get_project("update-test").unwrap().unwrap();
+        assert_eq!(updated.name, "Updated Name");
+        assert_eq!(updated.description, Some("New description".to_string()));
+    }
+
+    #[test]
+    fn test_delete_project() {
+        let (db, _temp) = setup_test_db();
+
+        let project = Project {
+            id: "delete-test".to_string(),
+            name: "To Delete".to_string(),
+            created_at: 1000,
+            updated_at: 1000,
+            description: None,
+            floor_plan: None,
+            photos: vec![],
+            conversations: vec![],
+            renderings: vec![],
+        };
+
+        db.create_project(&project).unwrap();
+        assert!(db.get_project("delete-test").unwrap().is_some());
+
+        // 删除项目
+        db.delete_project("delete-test").unwrap();
+        assert!(db.get_project("delete-test").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_settings() {
+        let (db, _temp) = setup_test_db();
+
+        // 设置值
+        db.set_setting("api_key", "test-key-123").unwrap();
+
+        // 获取值
+        let value = db.get_setting("api_key").unwrap();
+        assert_eq!(value, Some("test-key-123".to_string()));
+
+        // 获取不存在的值
+        let not_found = db.get_setting("nonexistent").unwrap();
+        assert_eq!(not_found, None);
+    }
+
+    #[test]
+    fn test_save_and_get_image() {
+        let (db, _temp) = setup_test_db();
+
+        // 先创建一个项目
+        let project = Project {
+            id: "img-test-proj".to_string(),
+            name: "Image Test Project".to_string(),
+            created_at: 1000,
+            updated_at: 1000,
+            description: None,
+            floor_plan: None,
+            photos: vec![],
+            conversations: vec![],
+            renderings: vec![],
+        };
+        db.create_project(&project).unwrap();
+
+        // 保存图片
+        let image = ImageFile {
+            id: "img-001".to_string(),
+            filename: "floorplan.jpg".to_string(),
+            path: "/path/to/floorplan.jpg".to_string(),
+            thumbnail_path: "/path/to/thumb.jpg".to_string(),
+            size: 1024000,
+            width: 1920,
+            height: 1080,
+            uploaded_at: 1234567890,
+        };
+
+        db.save_image(&image, "img-test-proj", "floor_plan").unwrap();
+
+        // 获取图片
+        let retrieved = db.get_image("img-001").unwrap().unwrap();
+        assert_eq!(retrieved.id, "img-001");
+        assert_eq!(retrieved.filename, "floorplan.jpg");
+        assert_eq!(retrieved.width, 1920);
+    }
+}
