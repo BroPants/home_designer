@@ -106,8 +106,14 @@ function App() {
     setUploadingType(type);
     try {
       for (const file of files) {
+        console.log(`[App] Processing file: ${file.name}, type: ${file.type}, size: ${file.size}`);
+        
         const arrayBuffer = await file.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
+        
+        // 检查文件头（JPEG 应该是 FF D8，PNG 应该是 89 50 4E 47）
+        const header = Array.from(uint8Array.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+        console.log(`[App] File header (first 4 bytes): ${header}`);
         
         await imageApi.uploadImage(
           currentProject.id,

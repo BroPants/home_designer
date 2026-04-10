@@ -66,6 +66,10 @@ impl ImageService {
     pub fn save_from_bytes(&self, data: &[u8], output_path: &Path) -> Result<(i32, i32)> {
         log::info!("Writing {} bytes to {:?}", data.len(), output_path);
         
+        // 记录文件头（前4个字节）用于调试
+        let header: Vec<String> = data.iter().take(4).map(|b| format!("{:02x}", b)).collect();
+        log::info!("File header (first 4 bytes): {}", header.join(" "));
+        
         // 写入文件
         fs::write(output_path, data)
             .with_context(|| format!("Failed to write image file to {:?}", output_path))?;
