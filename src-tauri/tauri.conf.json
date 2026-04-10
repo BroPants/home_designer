@@ -1,0 +1,93 @@
+{
+  "build": {
+    "beforeBuildCommand": "pnpm build",
+    "beforeDevCommand": "pnpm dev",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "Home Designer",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "fs": {
+        "all": true,
+        "readFile": true,
+        "writeFile": true,
+        "readDir": true,
+        "copyFile": true,
+        "createDir": true,
+        "removeDir": true,
+        "removeFile": true,
+        "renameFile": true
+      },
+      "path": {
+        "all": true
+      },
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "dialog": {
+        "all": true,
+        "ask": true,
+        "confirm": true,
+        "message": true,
+        "open": true,
+        "save": true
+      },
+      "notification": {
+        "all": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "Productivity",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/icon.ico"
+      ],
+      "identifier": "com.bropants.home-designer",
+      "longDescription": "AI-powered interior design application",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
+      "resources": [],
+      "shortDescription": "Interior Design App",
+      "targets": "msi",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 800,
+        "resizable": true,
+        "title": "Home Designer - 智能室内设计师",
+        "width": 1400,
+        "minWidth": 1200,
+        "minHeight": 700,
+        "center": true
+      }
+    ]
+  }
+}
