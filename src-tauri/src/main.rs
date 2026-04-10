@@ -6,11 +6,18 @@ mod models;
 mod services;
 
 use commands::*;
+use tauri::Manager;
 
 fn main() {
     env_logger::init();
     
     tauri::Builder::default()
+        .setup(|app| {
+            // 获取应用数据目录并记录日志
+            let data_dir = app.path_resolver().app_data_dir().expect("Failed to get data dir");
+            log::info!("[Setup] App data directory: {:?}", data_dir);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             // 项目相关
             create_project,

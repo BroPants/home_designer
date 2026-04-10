@@ -21,9 +21,16 @@ const defaultAccept = {
 
 // 将本地文件路径转换为可访问的 URL
 function getImageUrl(path: string): string {
+  if (!path) {
+    console.warn('[ImageUploader] Empty path provided');
+    return '';
+  }
   try {
-    return convertFileSrc(path);
-  } catch {
+    const url = convertFileSrc(path);
+    console.log('[ImageUploader] Converting path:', path, '->', url);
+    return url;
+  } catch (err) {
+    console.error('[ImageUploader] Failed to convert path:', path, err);
     return '';
   }
 }
@@ -42,12 +49,14 @@ export function ImageUploader({
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
-      // 标记正在上传的文件
+      console.log('[ImageUploader] Dropped files:', acceptedFiles.map(f => f.name));
       const fileIds = acceptedFiles.map(f => f.name + f.size);
       setUploadingFiles(prev => new Set([...prev, ...fileIds]));
       
       try {
         await onUpload(acceptedFiles);
+      } catch (err) {
+        console.error('[ImageUploader] Upload failed:', err);
       } finally {
         setUploadingFiles(prev => {
           const next = new Set(prev);
@@ -74,6 +83,8 @@ export function ImageUploader({
   const description = isFloorPlan
     ? '上传户型平面图，支持 JPG、PNG 格式（最多1张）'
     : '上传房间实拍照片，支持 JPG、PNG 格式（最多5张）';
+
+  console.log('[ImageUploader] Rendering with images:', images.map(i => ({ id: i.id, path: i.path, thumb: i.thumbnailPath })));
 
   return (
     <div className="space-y-3">
@@ -159,10 +170,36 @@ function ImageThumbnail({
   const [hasError, setHasError] = useState(false);
 
   const imageUrl = useMemo(() => {
-    // 优先使用缩略图，如果没有则使用原图
+    console.log('[ImageThumbnail] Processing image:', image.id, 'path:', image.path, 'thumbPath:', image.thumbnailPath);
     const path = image.thumbnailPath || image.path;
-    return getImageUrl(path);
+    if (!path) {
+      console.warn('[ImageThumbnail] No path available for image:', image.id);
+      return '';
+    }
+    const url = getImageUrl(path);
+    console.log('[ImageThumbnail] Image URL:', url);
+    return url;
   }, [image]);
+
+  if (!imageUrl) {
+    return (
+      <div className={`relative rounded-lg border border-gray-200 bg-gray-100 flex items-center justify-center ${isFloorPlan ? 'aspect-video' : 'aspect-square'}`}>
+        <div className="text-center text-gray-400">
+          <ImageIcon className="w-8 h-8 mx-auto mb-1" />
+          <span className="text-xs">无效图片路径</span>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="absolute top-1.5 right-1.5 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-sm"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -180,6 +217,7 @@ function ImageThumbnail({
         <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
           <ImageIcon className="w-8 h-8 mb-1" />
           <span className="text-xs">加载失败</span>
+          <span className="text-[10px] text-gray-300 mt-1 px-2 text-center truncate max-w-full">{image.thumbnailPath || image.path}</span>
         </div>
       ) : (
         <img
@@ -188,8 +226,14 @@ function ImageThumbnail({
           className={`w-full h-full object-cover transition-opacity duration-200 ${
             isLoaded ? 'opacity-100' : 'opacity-0'
           }`}
-          onLoad={() => setIsLoaded(true)}
-          onError={() => setHasError(true)}
+          onLoad={() => {
+            console.log('[ImageThumbnail] Image loaded:', image.id);
+            setIsLoaded(true);
+          }}
+          onError={(e) => {
+            console.error('[ImageThumbnail] Image failed to load:', image.id, 'url:', imageUrl, 'error:', e);
+            setHasError(true);
+          }}
         />
       )}
 

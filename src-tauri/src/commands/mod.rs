@@ -52,7 +52,7 @@ pub async fn upload_image(
     image_type: ImageType,
 ) -> Result<ImageFile, String> {
     use crate::services::image::ImageService;
-    use std::path::Path;
+    use std::fs;
 
     let mut storage = STORAGE.lock().map_err(|e| e.to_string())?;
     let image_service = ImageService::new();
@@ -66,20 +66,24 @@ pub async fn upload_image(
         ImageType::Photo => ("photos", 400),
     };
 
-    let image_path = project_dir.join(subdir).join(format!("{}.jpg", image_id));
-    let thumbnail_path = project_dir
-        .join("thumbnails")
-        .join(format!("{}_thumb.jpg", image_id));
+    // 确保子目录存在
+    let subdir_path = project_dir.join(subdir);
+    let thumbnail_dir = project_dir.join("thumbnails");
+    fs::create_dir_all(&subdir_path).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&thumbnail_dir).map_err(|e| e.to_string())?;
+
+    let image_path = subdir_path.join(format!("{}.jpg", image_id));
+    let thumbnail_path = thumbnail_dir.join(format!("{}_thumb.jpg", image_id));
 
     // 保存原图并获取尺寸
     let (width, height) = image_service
         .save_from_bytes(&image_data, &image_path)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Failed to save image: {}", e))?;
 
     // 生成缩略图
     image_service
         .generate_thumbnail(&image_path, &thumbnail_path, 400)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Failed to generate thumbnail: {}", e))?;
 
     let image_file = ImageFile {
         id: image_id,
