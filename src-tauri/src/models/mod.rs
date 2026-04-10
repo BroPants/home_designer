@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 // 图片文件
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImageFile {
     pub id: String,
     pub filename: String,
@@ -32,6 +33,7 @@ pub enum MessageRole {
 
 // 消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Message {
     pub id: String,
     pub role: MessageRole,
@@ -43,6 +45,7 @@ pub struct Message {
 
 // 消息元数据
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageMetadata {
     pub rendering_id: Option<String>,
     pub tokens_used: Option<i32>,
@@ -50,6 +53,7 @@ pub struct MessageMetadata {
 
 // 对话
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Conversation {
     pub id: String,
     pub created_at: i64,
@@ -58,6 +62,7 @@ pub struct Conversation {
 
 // 效果图
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Rendering {
     pub id: String,
     pub prompt: String,
@@ -69,6 +74,7 @@ pub struct Rendering {
 
 // 项目
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Project {
     pub id: String,
     pub name: String,
@@ -83,6 +89,7 @@ pub struct Project {
 
 // 项目摘要
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProjectSummary {
     pub id: String,
     pub name: String,
