@@ -49,7 +49,7 @@ export const imageApi = {
       projectId,
       imageData: Array.from(imageData),
       filename,
-      type,
+      imageType: type,
     });
   },
 
