@@ -165,15 +165,17 @@ function App() {
     addMessage(userMessage);
 
     setLoading(true);
+    setError(null);
+    
     try {
-      // 调用 API 发送消息
-      await chatApi.sendMessage(currentProject.id, content, imageIds);
+      // 调用 API 发送消息，直接获取 AI 响应
+      const aiMessage = await chatApi.sendMessage(currentProject.id, content, imageIds);
       
-      // 刷新项目数据以获取 AI 响应
-      const updated = await projectApi.getProject(currentProject.id);
-      setCurrentProject(updated);
+      // 添加 AI 消息到界面
+      addMessage(aiMessage);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '发送消息失败');
+      const errorMessage = err instanceof Error ? err.message : '发送消息失败';
+      setError(errorMessage);
       console.error(err);
     } finally {
       setLoading(false);

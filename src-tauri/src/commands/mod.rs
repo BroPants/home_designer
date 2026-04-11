@@ -157,12 +157,13 @@ pub async fn read_image_file(path: String) -> Result<Vec<u8>, String> {
 
 // ==================== AI 对话相关命令 ====================
 
+/// 发送消息（非流式）
 #[command]
 pub async fn send_message(
     project_id: String,
     content: String,
     image_ids: Option<Vec<String>>,
-) -> Result<String, String> {
+) -> Result<Message, String> {
     use crate::services::kimi::KimiClient;
     use crate::services::image::ImageService;
 
@@ -267,7 +268,7 @@ pub async fn send_message(
     }
 
     log::info!("Message exchange completed for project {}", project_id);
-    Ok(ai_message.id)
+    Ok(ai_message)
 }
 
 #[command]

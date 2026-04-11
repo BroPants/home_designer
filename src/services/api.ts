@@ -71,7 +71,7 @@ export const chatApi = {
     projectId: string,
     content: string,
     imageIds?: string[]
-  ): Promise<{ messageId: string }> => {
+  ): Promise<Message> => {
     return invoke('send_message', { projectId, content, imageIds });
   },
 
