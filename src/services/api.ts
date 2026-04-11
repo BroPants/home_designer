@@ -75,6 +75,11 @@ export const chatApi = {
     return invoke('send_message', { projectId, content, imageIds });
   },
 
+  // 清空对话
+  clearConversation: async (projectId: string): Promise<void> => {
+    return invoke('clear_conversation', { projectId });
+  },
+
   // 生成效果图
   generateRendering: async (
     projectId: string,

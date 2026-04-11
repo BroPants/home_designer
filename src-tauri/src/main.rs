@@ -31,6 +31,7 @@ fn main() {
             read_image_file,
             // AI 对话相关
             send_message,
+            clear_conversation,
             generate_rendering,
             // 导出相关
             export_project,

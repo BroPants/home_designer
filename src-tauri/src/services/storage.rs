@@ -184,6 +184,15 @@ impl Storage {
         Ok(())
     }
 
+    /// 清空项目的对话消息
+    pub fn clear_messages(&mut self, project_id: &str) -> Result<()> {
+        self.db.clear_conversation_messages(project_id)?;
+        self.db.touch_project(project_id)?;
+
+        log::info!("Cleared messages for project {}", project_id);
+        Ok(())
+    }
+
     // ==================== 效果图操作 ====================
 
     pub fn save_rendering(&mut self, project_id: &str, rendering: &Rendering) -> Result<()> {

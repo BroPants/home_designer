@@ -412,6 +412,28 @@ impl Database {
         Ok(())
     }
 
+    /// 清空项目的所有对话消息
+    pub fn clear_conversation_messages(&self, project_id: &str) -> Result<()> {
+        // 获取项目的所有对话 ID
+        let mut stmt = self.conn.prepare(
+            "SELECT id FROM conversations WHERE project_id = ?1"
+        )?;
+        
+        let conversation_ids: Vec<String> = stmt
+            .query_map([project_id], |row| row.get(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        
+        // 删除这些对话的所有消息
+        for conversation_id in conversation_ids {
+            self.conn.execute(
+                "DELETE FROM messages WHERE conversation_id = ?1",
+                [&conversation_id],
+            )?;
+        }
+        
+        Ok(())
+    }
+
     /// 获取项目的所有对话
     fn get_conversations(&self, project_id: &str) -> Result<Vec<Conversation>> {
         let mut stmt = self.conn.prepare(

@@ -271,6 +271,14 @@ pub async fn send_message(
     Ok(ai_message)
 }
 
+/// 清空项目对话
+#[command]
+pub async fn clear_conversation(project_id: String) -> Result<(), String> {
+    let mut storage = STORAGE.lock().map_err(|e| e.to_string())?;
+    storage.clear_messages(&project_id).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[command]
 pub async fn generate_rendering(
     project_id: String,

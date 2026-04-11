@@ -182,6 +182,21 @@ function App() {
     }
   };
 
+  // 清空对话
+  const handleClearMessages = async () => {
+    if (!currentProject) return;
+    
+    try {
+      await chatApi.clearConversation(currentProject.id);
+      // 刷新项目数据
+      const updated = await projectApi.getProject(currentProject.id);
+      setCurrentProject(updated);
+    } catch (err) {
+      setError('清空对话失败');
+      console.error(err);
+    }
+  };
+
   // 导出效果图
   const handleExportRendering = async (rendering: Rendering) => {
     // TODO: 实现导出功能
@@ -252,6 +267,7 @@ function App() {
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
               error={error}
+              onClearMessages={handleClearMessages}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center bg-white">
