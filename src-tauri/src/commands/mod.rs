@@ -53,9 +53,30 @@ pub async fn upload_image(
 ) -> Result<ImageFile, String> {
     use crate::services::image::ImageService;
     use std::fs;
+    use std::path::Path;
 
     log::info!("Starting upload_image: project={}, filename={}, type={:?}", project_id, filename, image_type);
     log::info!("Image data size: {} bytes", image_data.len());
+
+    // 从文件名提取扩展名，保留原始格式
+    let ext = Path::new(&filename)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())
+        .unwrap_or_else(|| "jpg".to_string());
+    
+    // 验证支持的格式
+    let ext = match ext.as_str() {
+        "png" => "png",
+        "jpg" | "jpeg" => "jpg",
+        "webp" => "webp",
+        _ => {
+            log::warn!("Unknown extension '{}', defaulting to jpg", ext);
+            "jpg"
+        }
+    };
+    
+    log::info!("Detected file extension: {}", ext);
 
     let mut storage = STORAGE.lock().map_err(|e| e.to_string())?;
     let image_service = ImageService::new();
@@ -83,7 +104,8 @@ pub async fn upload_image(
     fs::create_dir_all(&subdir_path).map_err(|e| format!("Failed to create subdir: {}", e))?;
     fs::create_dir_all(&thumbnail_dir).map_err(|e| format!("Failed to create thumbnail dir: {}", e))?;
 
-    let image_path = subdir_path.join(format!("{}.jpg", image_id));
+    // 使用原始格式保存原图，缩略图统一用 jpg
+    let image_path = subdir_path.join(format!("{}.{}", image_id, ext));
     let thumbnail_path = thumbnail_dir.join(format!("{}_thumb.jpg", image_id));
     
     log::info!("Image paths: image={:?}, thumbnail={:?}", image_path, thumbnail_path);

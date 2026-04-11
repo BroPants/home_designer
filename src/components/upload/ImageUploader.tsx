@@ -16,7 +16,9 @@ interface ImageUploaderProps {
 }
 
 const defaultAccept = {
-  'image/*': ['.png', '.jpg', '.jpeg', '.webp'],
+  'image/png': ['.png'],
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/webp': ['.webp'],
 };
 
 // 将本地文件路径转换为可访问的 URL
