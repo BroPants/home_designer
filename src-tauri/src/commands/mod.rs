@@ -163,28 +163,111 @@ pub async fn send_message(
     content: String,
     image_ids: Option<Vec<String>>,
 ) -> Result<String, String> {
-    let storage = STORAGE.lock().map_err(|e| e.to_string())?;
+    use crate::services::kimi::KimiClient;
+    use crate::services::image::ImageService;
 
-    // 获取 API Key
-    let api_key = storage
-        .get_api_key()
-        .map_err(|e| e.to_string())?
-        .ok_or("API key not set")?;
+    log::info!("Sending message for project {}: {}", project_id, content);
 
-    // 获取项目信息用于上下文
-    let project = storage
-        .get_project(&project_id)
-        .map_err(|e| e.to_string())?
-        .ok_or("Project not found")?;
+    // 从 storage 获取数据
+    let (api_key, history_messages, image_paths) = {
+        let mut storage = STORAGE.lock().map_err(|e| e.to_string())?;
 
-    // 构建消息
-    let message_id = uuid::Uuid::new_v4().to_string();
+        // 获取 API Key
+        let api_key = storage
+            .get_api_key()
+            .map_err(|e| e.to_string())?
+            .ok_or("API key not set")?;
 
-    // TODO: 实现完整的对话历史管理和流式响应
-    // 目前返回消息 ID，前端通过轮询或其他方式获取响应
+        // 获取项目信息
+        let project = storage
+            .get_project(&project_id)
+            .map_err(|e| e.to_string())?
+            .ok_or("Project not found")?;
 
-    log::info!("Message sent: {} for project {}", message_id, project_id);
-    Ok(message_id)
+        // 获取对话历史
+        let mut history_messages: Vec<Message> = Vec::new();
+        if let Some(conversation) = project.conversations.first() {
+            // 取最近 10 条消息作为上下文
+            let start = conversation.messages.len().saturating_sub(10);
+            history_messages = conversation.messages[start..].to_vec();
+        }
+
+        // 收集图片路径
+        let mut image_paths = Vec::new();
+        if let Some(ids) = image_ids {
+            for image_id in ids {
+                if let Ok(Some(image)) = storage.get_image(&image_id) {
+                    image_paths.push(image.path);
+                }
+            }
+        }
+
+        (api_key, history_messages, image_paths)
+    }; // MutexGuard 在这里释放
+
+    // 处理图片 - 转换为 base64
+    let mut image_base64_list = Vec::new();
+    if !image_paths.is_empty() {
+        let image_service = ImageService::new();
+        for path in image_paths {
+            match image_service.image_to_base64(std::path::Path::new(&path)) {
+                Ok(base64) => image_base64_list.push(base64),
+                Err(e) => log::warn!("Failed to encode image at {}: {}", path, e),
+            }
+        }
+    }
+
+    // 构建当前用户消息
+    let user_message = Message {
+        id: uuid::Uuid::new_v4().to_string(),
+        role: MessageRole::User,
+        content: content.clone(),
+        images: if image_base64_list.is_empty() { None } else { Some(image_base64_list.clone()) },
+        timestamp: chrono::Utc::now().timestamp_millis(),
+        metadata: None,
+    };
+
+    // 合并历史消息和当前消息
+    let mut all_messages = history_messages;
+    all_messages.push(user_message.clone());
+
+    // 保存用户消息到数据库
+    {
+        let mut storage = STORAGE.lock().map_err(|e| e.to_string())?;
+        storage.add_message(&project_id, &user_message).map_err(|e| e.to_string())?;
+    }
+
+    // 调用 Kimi API
+    let kimi = KimiClient::new(api_key);
+    
+    // 如果有图片，使用多模态对话
+    let ai_content = if !image_base64_list.is_empty() {
+        kimi.chat_with_images(content, image_base64_list).await
+    } else {
+        kimi.chat(all_messages).await
+    }.map_err(|e| format!("AI API error: {}", e))?;
+
+    // 创建 AI 响应消息
+    let ai_message = Message {
+        id: uuid::Uuid::new_v4().to_string(),
+        role: MessageRole::Assistant,
+        content: ai_content,
+        images: None,
+        timestamp: chrono::Utc::now().timestamp_millis(),
+        metadata: Some(MessageMetadata {
+            rendering_id: None,
+            tokens_used: None,
+        }),
+    };
+
+    // 保存 AI 消息到数据库
+    {
+        let mut storage = STORAGE.lock().map_err(|e| e.to_string())?;
+        storage.add_message(&project_id, &ai_message).map_err(|e| e.to_string())?;
+    }
+
+    log::info!("Message exchange completed for project {}", project_id);
+    Ok(ai_message.id)
 }
 
 #[command]
@@ -236,7 +319,7 @@ pub async fn generate_rendering(
 #[command]
 pub async fn export_project(
     project_id: String,
-    format: ExportFormat,
+    _format: ExportFormat,
 ) -> Result<String, String> {
     let storage = STORAGE.lock().map_err(|e| e.to_string())?;
 

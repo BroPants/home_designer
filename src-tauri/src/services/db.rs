@@ -352,8 +352,35 @@ impl Database {
         Ok(())
     }
 
+    /// 获取或创建项目的对话
+    pub fn get_or_create_conversation(&self, project_id: &str) -> Result<String> {
+        // 尝试获取现有对话
+        let mut stmt = self.conn.prepare(
+            "SELECT id FROM conversations WHERE project_id = ?1 ORDER BY created_at DESC LIMIT 1"
+        )?;
+        
+        let existing: Option<String> = stmt
+            .query_row([project_id], |row| row.get(0))
+            .optional()?;
+        
+        if let Some(id) = existing {
+            Ok(id)
+        } else {
+            // 创建新对话
+            let id = uuid::Uuid::new_v4().to_string();
+            let now = chrono::Utc::now().timestamp_millis();
+            
+            self.conn.execute(
+                "INSERT INTO conversations (id, project_id, created_at) VALUES (?1, ?2, ?3)",
+                params![id, project_id, now],
+            )?;
+            
+            Ok(id)
+        }
+    }
+
     /// 保存消息
-    fn save_message(&self, message: &Message, conversation_id: &str) -> Result<()> {
+    pub fn save_message(&self, message: &Message, conversation_id: &str) -> Result<()> {
         let images_json = message.images.as_ref().map(|imgs| {
             serde_json::to_string(imgs).unwrap_or_default()
         });

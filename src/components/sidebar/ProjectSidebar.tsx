@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Clock, Image as ImageIcon, MessageSquare } from 'lucide-react';
+import { Plus, Trash2, Clock, Image as ImageIcon, MessageSquare, Settings } from 'lucide-react';
 import { ProjectSummary } from '@/types';
 import { formatTimestamp } from '@/utils/format';
 
@@ -9,6 +9,7 @@ interface ProjectSidebarProps {
   onSelectProject: (id: string) => void;
   onCreateProject: () => void;
   onDeleteProject: (id: string) => void;
+  onOpenSettings?: () => void;
 }
 
 export function ProjectSidebar({
@@ -17,6 +18,7 @@ export function ProjectSidebar({
   onSelectProject,
   onCreateProject,
   onDeleteProject,
+  onOpenSettings,
 }: ProjectSidebarProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -137,8 +139,17 @@ export function ProjectSidebar({
 
       {/* 底部信息 */}
       <div className="p-3 border-t border-sidebar-border">
-        <div className="text-xs text-gray-400 text-center">
-          Home Designer v0.1.0
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-gray-400">
+            Home Designer v0.1.0
+          </div>
+          <button
+            onClick={onOpenSettings}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="设置"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>

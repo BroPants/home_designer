@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Send, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { Message } from '@/types';
 import { formatTimestamp } from '@/utils/format';
 
@@ -7,9 +7,10 @@ interface ChatInterfaceProps {
   messages: Message[];
   onSendMessage: (content: string, imageIds?: string[]) => void;
   isLoading: boolean;
+  error?: string | null;
 }
 
-export function ChatInterface({ messages, onSendMessage, isLoading }: ChatInterfaceProps) {
+export function ChatInterface({ messages, onSendMessage, isLoading, error }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -82,6 +83,12 @@ export function ChatInterface({ messages, onSendMessage, isLoading }: ChatInterf
             <span className="text-sm">AI 正在思考...</span>
           </div>
         )}
+        {error && (
+          <div className="flex items-center space-x-2 p-3 bg-red-50 text-red-800 rounded-lg">
+            <AlertCircle className="w-4 h-4" />
+            <span className="text-sm">{error}</span>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -149,6 +156,22 @@ function MessageItem({ message }: { message: Message }) {
           }
         `}
       >
+        {/* 显示引用的图片 */}
+        {message.images && message.images.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {message.images.map((_, index) => (
+              <div
+                key={index}
+                className={`flex items-center space-x-1 text-xs ${
+                  isUser ? 'text-primary-200' : 'text-gray-500'
+                }`}
+              >
+                <ImageIcon className="w-3 h-3" />
+                <span>图片 {index + 1}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <p className="text-sm whitespace-pre-wrap leading-relaxed">
           {message.content}
         </p>

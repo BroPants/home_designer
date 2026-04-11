@@ -165,6 +165,25 @@ impl Storage {
         Ok(())
     }
 
+    /// 添加消息到项目的对话中
+    pub fn add_message(&mut self, project_id: &str, message: &Message) -> Result<()> {
+        // 获取或创建对话
+        let conversation_id = self.db.get_or_create_conversation(project_id)?;
+        
+        // 保存消息
+        self.db.save_message(message, &conversation_id)?;
+        
+        // 更新项目时间戳
+        self.db.touch_project(project_id)?;
+
+        log::info!(
+            "Added message {} to project {}",
+            message.id,
+            project_id
+        );
+        Ok(())
+    }
+
     // ==================== 效果图操作 ====================
 
     pub fn save_rendering(&mut self, project_id: &str, rendering: &Rendering) -> Result<()> {

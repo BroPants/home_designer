@@ -3,6 +3,7 @@ import { ImageUploader } from '@/components/upload/ImageUploader';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { RenderingViewer } from '@/components/viewer/RenderingViewer';
 import { ProjectSidebar } from '@/components/sidebar/ProjectSidebar';
+import { SettingsDialog } from '@/components/settings/SettingsDialog';
 import { useProjectStore } from '@/stores/projectStore';
 import { projectApi, imageApi, chatApi } from '@/services/api';
 import { ImageType, ProjectSummary, Message, Rendering } from '@/types';
@@ -14,12 +15,12 @@ function App() {
     currentProject,
     projects,
     isLoading,
+    error,
     setCurrentProject,
     setProjects,
     addProject,
     removeProject,
     addMessage,
-
     setLoading,
     setError,
   } = useProjectStore();
@@ -28,6 +29,7 @@ function App() {
   const [selectedRenderingIndex, setSelectedRenderingIndex] = useState(0);
   const [, setIsCreating] = useState(false);
   const [uploadingType, setUploadingType] = useState<ImageType | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // 初始化：加载项目列表
   useEffect(() => {
@@ -149,14 +151,15 @@ function App() {
   };
 
   // 发送消息
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, imageIds?: string[]) => {
     if (!currentProject) return;
 
-    // 添加用户消息到界面
+    // 添加用户消息到界面（乐观更新）
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
       content,
+      images: imageIds,
       timestamp: Date.now(),
     };
     addMessage(userMessage);
@@ -164,23 +167,16 @@ function App() {
     setLoading(true);
     try {
       // 调用 API 发送消息
-      await chatApi.sendMessage(currentProject.id, content);
+      await chatApi.sendMessage(currentProject.id, content, imageIds);
       
-      // 模拟 AI 响应（实际应从流式响应中构建）
-      setTimeout(async () => {
-        const aiMessage: Message = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: '我已收到您的设计需求。基于您上传的图片，我建议采用现代简约风格，以白色和木色为主色调，增加空间感。您可以点击"生成效果图"来预览设计效果。',
-          timestamp: Date.now(),
-        };
-        addMessage(aiMessage);
-        setLoading(false);
-      }, 1500);
+      // 刷新项目数据以获取 AI 响应
+      const updated = await projectApi.getProject(currentProject.id);
+      setCurrentProject(updated);
     } catch (err) {
-      setError('发送消息失败');
-      setLoading(false);
+      setError(err instanceof Error ? err.message : '发送消息失败');
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -193,13 +189,14 @@ function App() {
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       {/* 左侧边栏 - 项目列表 */}
-      <div className="w-72 flex-shrink-0">
+      <div className="w-72 flex-shrink-0 flex flex-col">
         <ProjectSidebar
           projects={projects}
           currentProjectId={currentProject?.id || null}
           onSelectProject={handleSelectProject}
           onCreateProject={handleCreateProject}
           onDeleteProject={handleDeleteProject}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
       </div>
 
@@ -252,6 +249,7 @@ function App() {
               messages={currentProject.conversations.flatMap((c) => c.messages)}
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
+              error={error}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center bg-white">
@@ -289,6 +287,12 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* 设置对话框 */}
+      <SettingsDialog
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }
