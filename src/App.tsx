@@ -197,6 +197,31 @@ function App() {
     }
   };
 
+  // 生成效果图
+  const handleGenerateRendering = async () => {
+    if (!currentProject) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const rendering = await chatApi.generateRendering(currentProject.id);
+      
+      // 更新当前项目数据
+      const updated = await projectApi.getProject(currentProject.id);
+      setCurrentProject(updated);
+      
+      // 选中新生成的效果图
+      setSelectedRenderingIndex(updated.renderings.length - 1);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '生成效果图失败';
+      setError(errorMessage);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 导出效果图
   const handleExportRendering = async (rendering: Rendering) => {
     // TODO: 实现导出功能
@@ -293,6 +318,8 @@ function App() {
             currentIndex={selectedRenderingIndex}
             onSelect={setSelectedRenderingIndex}
             onExport={handleExportRendering}
+            onGenerate={handleGenerateRendering}
+            isGenerating={isLoading}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center">

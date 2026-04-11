@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
+import { convertFileSrc } from '@tauri-apps/api/tauri';
 import { Rendering } from '@/types';
 
 interface RenderingViewerProps {
@@ -7,6 +8,8 @@ interface RenderingViewerProps {
   currentIndex: number;
   onSelect: (index: number) => void;
   onExport?: (rendering: Rendering) => void;
+  onGenerate?: () => void;
+  isGenerating?: boolean;
 }
 
 export function RenderingViewer({
@@ -14,32 +17,58 @@ export function RenderingViewer({
   currentIndex,
   onSelect,
   onExport,
+  onGenerate,
+  isGenerating = false,
 }: RenderingViewerProps) {
   const [zoom, setZoom] = useState(1);
-  const [_isFullscreen, _setIsFullscreen] = useState(false);
 
   const currentRendering = renderings[currentIndex];
+
+  // 转换图片路径为可访问的 URL
+  const imageUrl = useMemo(() => {
+    if (!currentRendering?.imagePath) return '';
+    try {
+      return convertFileSrc(currentRendering.imagePath);
+    } catch {
+      return '';
+    }
+  }, [currentRendering]);
+
+  const thumbnailUrl = useMemo((path: string) => {
+    try {
+      return convertFileSrc(path);
+    } catch {
+      return '';
+    }
+  }, []);
 
   if (renderings.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-          <svg
-            className="w-8 h-8 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
+        <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center mb-4">
+          <Sparkles className="w-8 h-8 text-primary-600" />
         </div>
-        <h3 className="text-gray-500 font-medium">暂无效果图</h3>
-        <p className="text-sm text-gray-400 mt-1">与 AI 对话生成设计方案</p>
+        <h3 className="text-gray-700 font-medium">暂无效果图</h3>
+        <p className="text-sm text-gray-400 mt-1 mb-4">与 AI 对话后生成设计方案</p>
+        {onGenerate && (
+          <button
+            onClick={onGenerate}
+            disabled={isGenerating}
+            className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>生成中...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                <span>生成效果图</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
     );
   }
@@ -49,7 +78,7 @@ export function RenderingViewer({
       {/* 主图区域 */}
       <div className="flex-1 relative bg-gray-900 rounded-xl overflow-hidden">
         <img
-          src={`data:image/png;base64,${currentRendering?.imagePath}`}
+          src={imageUrl}
           alt="设计效果图"
           className="w-full h-full object-contain transition-transform duration-200"
           style={{ transform: `scale(${zoom})` }}
@@ -129,7 +158,7 @@ export function RenderingViewer({
               `}
             >
               <img
-                src={`data:image/jpeg;base64,${rendering.thumbnailPath}`}
+                src={thumbnailUrl(rendering.thumbnailPath)}
                 alt={`效果图 ${index + 1}`}
                 className="w-full h-full object-cover"
               />
@@ -149,6 +178,27 @@ export function RenderingViewer({
             生成于 {new Date(currentRendering.createdAt).toLocaleString('zh-CN')}
           </p>
         </div>
+      )}
+
+      {/* 生成新效果图按钮 */}
+      {onGenerate && (
+        <button
+          onClick={onGenerate}
+          disabled={isGenerating}
+          className="mt-3 flex items-center justify-center space-x-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>正在生成效果图...</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              <span>生成新效果图</span>
+            </>
+          )}
+        </button>
       )}
     </div>
   );

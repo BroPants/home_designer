@@ -279,45 +279,116 @@ pub async fn clear_conversation(project_id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// 生成效果图
 #[command]
 pub async fn generate_rendering(
     project_id: String,
-    prompt: String,
+    custom_prompt: Option<String>,
 ) -> Result<Rendering, String> {
-    use crate::services::image::ImageService;
+    use crate::services::rendering::RenderingService;
+    use std::path::Path;
 
-    let mut storage = STORAGE.lock().map_err(|e| e.to_string())?;
+    log::info!("Generating rendering for project {}", project_id);
 
+    // 获取 API Key 和项目信息
+    let (api_key, messages) = {
+        let storage = STORAGE.lock().map_err(|e| e.to_string())?;
+
+        let api_key = storage
+            .get_api_key()
+            .map_err(|e| e.to_string())?;
+
+        let project = storage
+            .get_project(&project_id)
+            .map_err(|e| e.to_string())?
+            .ok_or("Project not found")?;
+
+        // 获取所有对话消息
+        let messages: Vec<Message> = project
+            .conversations
+            .iter()
+            .flat_map(|c| c.messages.clone())
+            .collect();
+
+        (api_key, messages)
+    }; // MutexGuard 释放
+
+    // 创建渲染服务
+    let rendering_service = RenderingService::new(api_key);
+
+    // 生成设计 prompt
+    let prompt = if let Some(custom) = custom_prompt {
+        custom
+    } else {
+        // 解析房间类型和风格
+        let last_user_message = messages
+            .iter()
+            .filter(|m| m.role == MessageRole::User)
+            .last()
+            .map(|m| m.content.as_str())
+            .unwrap_or("");
+
+        let room_type = RenderingService::parse_room_type(last_user_message);
+        let style = RenderingService::parse_style(last_user_message);
+
+        rendering_service
+            .generate_prompt(&messages, room_type, style)
+            .await
+            .map_err(|e| format!("Failed to generate prompt: {}", e))?
+    };
+
+    log::info!("Generated design prompt: {}", prompt);
+
+    // 生成效果图
     let rendering_id = uuid::Uuid::new_v4().to_string();
-    let project_dir = storage.get_project_dir(&project_id);
+    
+    let (image_path, thumbnail_path) = {
+        let storage = STORAGE.lock().map_err(|e| e.to_string())?;
+        let project_dir = storage.get_project_dir(&project_id);
 
-    let image_path = project_dir
-        .join("renderings")
-        .join(format!("{}.png", rendering_id));
-    let thumbnail_path = project_dir
-        .join("thumbnails")
-        .join(format!("{}_thumb.png", rendering_id));
+        let image_path = project_dir
+            .join("renderings")
+            .join(format!("{}.png", rendering_id));
+        let thumbnail_path = project_dir
+            .join("thumbnails")
+            .join(format!("{}_thumb.png", rendering_id));
 
-    // TODO: 调用 AI 生成实际图片
-    // 目前创建占位图
+        (image_path, thumbnail_path)
+    }; // MutexGuard 释放
 
+    // 生成图片
+    let (width, height) = rendering_service
+        .generate_rendering(
+            &prompt,
+            Path::new(&image_path),
+            Path::new(&thumbnail_path),
+        )
+        .await
+        .map_err(|e| format!("Failed to generate rendering: {}", e))?;
+
+    // 创建渲染记录
     let rendering = Rendering {
         id: rendering_id,
         prompt,
         image_path: image_path.to_string_lossy().to_string(),
         thumbnail_path: thumbnail_path.to_string_lossy().to_string(),
         created_at: chrono::Utc::now().timestamp_millis(),
-        based_on: vec![],
+        based_on: vec![project_id.clone()],
     };
 
     // 保存到数据库
-    storage
-        .save_rendering(&project_id, &rendering)
-        .map_err(|e| e.to_string())?;
+    {
+        let mut storage = STORAGE.lock().map_err(|e| e.to_string())?;
+        storage
+            .save_rendering(&project_id, &rendering)
+            .map_err(|e| e.to_string())?;
+    }
 
     log::info!(
-        "Rendering generated: {} for project {}",
+        "Rendering generated: {} ({}x{}) for project {}",
         rendering.id,
+        width,
+        height,
         project_id
     );
     Ok(rendering)

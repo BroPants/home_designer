@@ -1,6 +1,7 @@
 pub mod storage;
 pub mod image;
 pub mod kimi;
+pub mod rendering;
 pub mod db;
 
 use std::sync::Mutex;

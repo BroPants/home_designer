@@ -23,7 +23,7 @@ pub enum ImageType {
 }
 
 // 消息角色
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageRole {
     User,

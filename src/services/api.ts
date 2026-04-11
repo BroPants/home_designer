@@ -83,9 +83,9 @@ export const chatApi = {
   // 生成效果图
   generateRendering: async (
     projectId: string,
-    prompt: string
+    customPrompt?: string
   ): Promise<Rendering> => {
-    return invoke('generate_rendering', { projectId, prompt });
+    return invoke('generate_rendering', { projectId, customPrompt });
   },
 };
 
