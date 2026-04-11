@@ -294,11 +294,13 @@ main
    - SettingsDialog 组件支持设置 API Key
    - ChatInterface 优化，支持错误显示
    - 集成真实的 AI 对话调用
+   - 优化响应处理流程，直接显示 AI 回复
 2. **后端**:
    - KimiClient 支持普通对话和图文多模态对话
    - `send_message` 命令实现完整的对话流程
    - 对话历史自动保存到数据库
    - 支持上下文记忆（最近 10 条消息）
+   - 流式响应框架已搭建（`chat_stream`）
 
 ### Phase 4: 效果图生成 (Week 4-5)
 
