@@ -1,9 +1,10 @@
 import { useCallback, useState, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Loader2, Maximize2 } from 'lucide-react';
 import { convertFileSrc } from '@tauri-apps/api/tauri';
 import { ImageFile, ImageType } from '@/types';
 import { formatFileSize } from '@/utils/format';
+import { ImageLightbox } from './ImageLightbox';
 
 interface ImageUploaderProps {
   type: ImageType;
@@ -48,6 +49,8 @@ export function ImageUploader({
 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
+  const [lightboxIndex, setLightboxIndex] = useState<number>(-1);
+  const isLightboxOpen = lightboxIndex >= 0;
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -100,16 +103,26 @@ export function ImageUploader({
       {/* 图片列表 */}
       {images.length > 0 && (
         <div className={`grid gap-2 ${isFloorPlan ? 'grid-cols-1' : 'grid-cols-2'}`}>
-          {images.map((image) => (
+          {images.map((image, index) => (
             <ImageThumbnail
               key={image.id}
               image={image}
               onDelete={() => onDelete(image.id)}
+              onView={() => setLightboxIndex(index)}
               isFloorPlan={isFloorPlan}
             />
           ))}
         </div>
       )}
+
+      {/* 图片预览 Lightbox */}
+      <ImageLightbox
+        images={images}
+        currentIndex={lightboxIndex}
+        isOpen={isLightboxOpen}
+        onClose={() => setLightboxIndex(-1)}
+        onNavigate={setLightboxIndex}
+      />
 
       {/* 上传区域 */}
       {images.length < maxFiles && (
@@ -162,10 +175,12 @@ export function ImageUploader({
 function ImageThumbnail({
   image,
   onDelete,
+  onView,
   isFloorPlan,
 }: {
   image: ImageFile;
   onDelete: () => void;
+  onView: () => void;
   isFloorPlan: boolean;
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -205,9 +220,10 @@ function ImageThumbnail({
 
   return (
     <div
-      className={`relative group rounded-lg border border-gray-200 overflow-hidden bg-gray-50 ${
+      className={`relative group rounded-lg border border-gray-200 overflow-hidden bg-gray-50 cursor-pointer ${
         isFloorPlan ? 'aspect-video' : 'aspect-square'
       }`}
+      onClick={onView}
     >
       {!isLoaded && !hasError && (
         <div className="absolute inset-0 flex items-center justify-center">
@@ -241,6 +257,20 @@ function ImageThumbnail({
 
       {/* 悬停遮罩 */}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+      
+      {/* 查看按钮 */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onView();
+        }}
+        className="absolute top-1.5 left-1.5 p-1.5 bg-white/90 text-gray-700 rounded-full 
+                   opacity-0 group-hover:opacity-100 transition-all hover:bg-white 
+                   shadow-sm transform scale-90 group-hover:scale-100"
+        title="查看大图"
+      >
+        <Maximize2 className="w-3.5 h-3.5" />
+      </button>
       
       {/* 删除按钮 */}
       <button
